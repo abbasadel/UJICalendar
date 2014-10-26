@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+  <title>Create a Web Map</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+
+  <link rel="stylesheet" type="text/css" href="http://js.arcgis.com/3.11/esri/css/esri.css">
+  <style>
+    html,body,#mapDiv,.map.container{
+      padding:0;
+      margin:0;
+      height:100%;
+    }
+    #legendDiv{
+      background-color: #fff;
+      position: absolute !important;
+      z-index: 99;
+      top:10px;
+      right:20px;
+    }
+  </style>
+
+  <script>var dojoConfig = { parseOnLoad: true };</script>
+  <script src="http://js.arcgis.com/3.11compact/"></script>
+  <script>
+    var map,
+        webmapId = "122317f9c97843e58dabe1a21bb12363";
+
+    require([
+      "esri/map",
+      "esri/arcgis/utils",
+      "esri/dijit/Legend",
+      "dijit/TooltipDialog", "dijit/popup",
+      "dojo/domReady!"
+      ], function (Map, arcgisUtils, Legend, TooltipDialog, dijitPopup) {
+        arcgisUtils.createMap(webmapId, "mapDiv").then(function (response) {
+        map = response.map;
+
+        var legend = new Legend({
+            map: map,
+            layerInfos:(arcgisUtils.getLegendLayers(response))
+        }, "legendDiv");
+
+        legend.startup();
+
+        map.infoWindow.resize(245,125);
+
+        dialog = new TooltipDialog({
+          id: "tooltipDialog",
+          style: "position: absolute; width: 250px; font: normal normal normal 10pt Helvetica;z-index:100"
+        });
+        dialog.startup();
+    });
+    });
+  </script>
+
+  </head>
+
+  <body>
+    <div id="mapDiv"></div>
+    <div id="legendDiv"></div>
+  </body>
+  </html>
