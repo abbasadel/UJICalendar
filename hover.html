@@ -98,6 +98,27 @@
         });
         dialog.startup();
 
+        //get busy rooms
+        var queryTask = new QueryTask("http://services1.arcgis.com/k8WRSCmxGgCwZufI/arcgis/rest/services/Calendar2.gdb/FeatureServer/0");
+
+        var query = new Query();
+        query.returnGeometry = false;
+        query.outFields = ["*"];
+
+        console.log(new Date("1/10/2014"));
+        query.where = "Start_Date >= '10/1/2014 09:00:00 AM' and End_Date  <= '10/1/2014 02:00:00 PM'";
+        
+        var busyRooms = [];
+        queryTask.execute(query, function(results){
+            console.log(results);
+            results.features.forEach(function(item){
+              busyRooms.push(item.attributes.RoomNumber);
+            });
+
+            console.log(busyRooms);
+          });
+
+
         var highlightSymbol = new SimpleFillSymbol(
             SimpleFillSymbol.STYLE_SOLID,
             new SimpleLineSymbol(
@@ -116,7 +137,8 @@
 
             //select busy rooms
             var queryFeature = new Query();
-            queryFeature.where = "SPACEID like '%AA' ";
+            console.log(busyRooms.join(','));
+            queryFeature.where = "SPACEID in  (" + "'" + busyRooms.join("','") + "'" + ")";
 
             rooms.queryFeatures(queryFeature, function(result) {
                 var symbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID,
@@ -125,7 +147,6 @@
                 );
 
                 result.features.forEach(function(item) {
-                    console.log(item);
                     item.setSymbol(busy);
                 });
             });
@@ -137,7 +158,6 @@
             rooms.queryFeatures(queryFeature, function(result) {
 
                 result.features.forEach(function(item) {
-                    console.log(item);
                     item.setSymbol(highlightSymbol);
                 });
             });
@@ -155,7 +175,7 @@
 
 
 
-        var queryTask = new QueryTask("http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/Calendar.gdb/FeatureServer/0");
+        var queryTask = new QueryTask("http://services1.arcgis.com/k8WRSCmxGgCwZufI/arcgis/rest/services/Calendar2.gdb/FeatureServer/0");
 
         var query = new Query();
         query.returnGeometry = false;
