@@ -205,15 +205,15 @@
             function showResults(results) {
                 console.log(results.features)
                 var t = "<b>${SPACEID}</b><hr><b>Current Class: </b>${TITLE}<br>"
-                  + "<b>From:</b> ${FROM}, <b>To:</b> ${TO}<br>";
+                  + "<b>From:</b> ${FROM:DateFormat(selector:'time')}, <b>To:</b> ${TO:DateFormat(selector:'time')}<br>";
                 //   + "<b>2007 Population: </b>${POP2007:NumberFormat}<br>"
                 //   + "<b>2007 Population per Sq. Mi.: </b>${POP07_SQMI:NumberFormat}";
 
                 var data = {
                     SPACEID: evt.graphic.attributes.SPACEID,
                     TITLE: results.features[0].attributes.Title,
-                    FROM: new Date(results.features[0].attributes.Start_Date),
-                    TO: new Date(results.features[0].attributes.End_Date)
+                    FROM: results.features[0].attributes.Start_Date,
+                    TO: results.features[0].attributes.End_Date
                 }
 
                 var content = esriLang.substitute(data, t);
