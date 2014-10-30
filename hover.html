@@ -6,7 +6,7 @@
   <!--The viewport meta tag is used to improve the presentation and behavior of the samples
     on iOS devices-->
   <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
-  <title>Feature Layer - display results as an InfoWindow onHover</title>
+  <title>UJI Calendar - GIS Project</title>
 
   <link rel="stylesheet" href="http://js.arcgis.com/3.11/dijit/themes/tundra/tundra.css">
   <link rel="stylesheet" href="http://js.arcgis.com/3.11/esri/css/esri.css">
@@ -38,6 +38,13 @@
     var urlCalendar = "http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0";
     var urlCurrentFloor = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/14";
     var currentDate = new Date(2014, 9, 30, 10, 0, 0);
+    var currentDateString = (currentDate.getMonth() + 1) + '/' + currentDate.getDate() + '/' + currentDate.getFullYear() + ' ' + currentDate.getHours() + ':' + currentDate.getMinutes() + ':' + currentDate.getSeconds();
+
+    if (typeof String.prototype.endsWith !== 'function') {
+      String.prototype.endsWith = function(suffix) {
+        return this.indexOf(suffix, this.length - suffix.length) !== -1;
+      };
+    }
 
     require([
       "esri/map", "esri/layers/FeatureLayer",
@@ -115,23 +122,16 @@
 
       //get busy
       var queryTask = new QueryTask(urlCalendar);
-
       var query = new Query();
       query.returnGeometry = false;
       query.outFields = ["*"];
-
-
-      currentDateString = (currentDate.getMonth() + 1) + '/' + currentDate.getDate() + '/' + currentDate.getFullYear() + ' ' + currentDate.getHours() + ':' + currentDate.getMinutes() + ':' + currentDate.getSeconds();
-
-      console.log(currentDate);
-      console.log(currentDateString);
-
       query.where = "Start_Date <= '" + currentDateString + "' and End_Date  >= '" + currentDateString + "'";
+
+      console.log('Select Busy Rooms:');
       console.log(query.where);
 
       var busyRooms = [];
       queryTask.execute(query, function(results) {
-        console.log(results);
         results.features.forEach(function(item) {
           busyRooms.push(item.attributes.RoomNumber);
         });
@@ -139,41 +139,22 @@
         console.log('busyRooms: ');
         console.log(busyRooms);
 
-
-        //set color
-
         //select busy rooms
         var queryFeature = new Query();
         //queryFeature.where = "SPACEID in  (" + "'" + busyRooms.join("','") + "'" + ")";
         queryFeature.where = "1=1";
         layerRooms.queryFeatures(queryFeature, function(result) {
           result.features.forEach(function(item) {
-            if (dojo.indexOf(busyRooms, item.attributes.SPACEID) > 0) {
+            var SPACEID = item.attributes.SPACEID;
+            if (dojo.indexOf(busyRooms, SPACEID) > 0) {
               item.setSymbol(symbolBusy);
+            }else{
+              if(SPACEID.substring(0, SPACEID.length-1).endsWith('A')){
+                item.setSymbol(symbolFree);
+              }
             }
-            //map.graphics.add(item);
           });
         });
-
-
-
-
-
-
-
-        // //select busy rooms
-        // var queryFeature = new Query();
-        // queryFeature.where = "SPACEID like '%AI' ";
-
-        // rooms.queryFeatures(queryFeature, function(result) {
-
-        //     result.features.forEach(function(item) {
-        //         item.setSymbol(highlightSymbol);
-        //     });
-        // });
-
-
-
 
 
       });
@@ -251,7 +232,7 @@
       });
 
       function closeDialog() {
-          map.graphics.clear();
+        map.graphics.clear();
 
         dijitPopup.close(dialog);
       }
