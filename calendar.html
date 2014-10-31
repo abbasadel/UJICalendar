@@ -31,14 +31,16 @@
       z-index: 40;
     }
   </style>
-
+  <script src="moment.js"></script>
   <script src="http://js.arcgis.com/3.11/"></script>
   <script>
     var map, dialog, webmapId = "122317f9c97843e58dabe1a21bb12363";
     var urlCalendar = "http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0";
     var urlCurrentFloor = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/14";
-    var currentDate = new Date(2014, 9, 30, 10, 0, 0);
-    var currentDateString = (currentDate.getMonth() + 1) + '/' + currentDate.getDate() + '/' + currentDate.getFullYear() + ' ' + currentDate.getHours() + ':' + currentDate.getMinutes() + ':' + currentDate.getSeconds();
+    var baseMap = 'http://smartcampus.sg.uji.es/adaptor/rest/services/SmartCampus/SmartCampus/MapServer';
+    var currentDate = moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
+
+    console.log(currentDate);
 
     if (typeof String.prototype.endsWith !== 'function') {
       String.prototype.endsWith = function(suffix) {
@@ -54,6 +56,7 @@
       "dijit/TooltipDialog", "dijit/popup",
       "esri/arcgis/utils", "esri/dijit/Legend",
       "esri/tasks/query", "esri/tasks/QueryTask",
+      "esri/symbols/TextSymbol", "esri/layers/LabelLayer",
       "dojo/domReady!"
     ], function(
       Map, FeatureLayer,
@@ -62,7 +65,8 @@
       Color, number, domStyle,
       TooltipDialog, dijitPopup,
       arcgisUtils, Legend,
-      Query, QueryTask
+      Query, QueryTask,
+      TextSymbol, LabelLayer
     ) {
 
       // DECLARATIONS
@@ -71,9 +75,12 @@
       map = new Map("mapDiv", {
         basemap: "topo",
         center: [-0.0675706, 39.9927566],
-        zoom: 19 //,
+        zoom: 19,
+        maxZoom: 25
           //slider: false
       });
+
+
 
 
       // rooms kayers
@@ -83,6 +90,19 @@
         outFields: ["*"] //,
           //defaultDefinitionExpression: "BUILDING  = 'TD' and SPACETYPE like 'A%'"
       });
+
+      // var labelRoom = new TextSymbol();
+      //   labelRoom.font.setSize("6pt");
+      //   labelRoom.font.setFamily("arial");
+      //
+      //   var statesLabelRenderer = new SimpleRenderer(labelRoom);
+      //   var layerLabel = new LabelLayer({ id: "layerLabel" });
+      //   var labelField = 'SPACEID';
+      //   // tell the label layer to label the countries feature layer
+      //   // using the field named "admin"
+      //   layerLabel.addFeatureLayer(layerRooms, statesLabelRenderer, "{" + labelField + "}");
+      //   // add the label layer to the map
+      //   map.addLayer(layerLabel);
 
       //SYMPOLS
 
@@ -120,15 +140,23 @@
       });
       dialog.startup();
 
+      //close the dialog when the mouse leaves the highlight graphic
+      map.on("load", function() {
+
+
+        map.graphics.enableMouseEvents();
+        map.graphics.on("mouse-out", closeDialog);
+
+      });
+
       //get busy
       var queryTask = new QueryTask(urlCalendar);
       var query = new Query();
       query.returnGeometry = false;
-      query.outFields = ["*"];
-      query.where = "Start_Date <= '" + currentDateString + "' and End_Date  >= '" + currentDateString + "'";
+      query.outFields = ["RoomNumber"];
+      query.where = esriLang.substitute({NOW: currentDate.utc().format('MM/DD/YYYY h:mm:ss a') }, "Start_Date <= '${NOW}' and End_Date  >= '${NOW}'");
 
-      console.log('Select Busy Rooms:');
-      console.log(query.where);
+      console.log('Select Busy Rooms:' + query.where);
 
       var busyRooms = [];
       queryTask.execute(query, function(results) {
@@ -144,18 +172,23 @@
         //queryFeature.where = "SPACEID in  (" + "'" + busyRooms.join("','") + "'" + ")";
         queryFeature.where = "1=1";
         layerRooms.queryFeatures(queryFeature, function(result) {
+          console.log('rooms ' + result.features.length);
           result.features.forEach(function(item) {
             var SPACEID = item.attributes.SPACEID;
-            if (dojo.indexOf(busyRooms, SPACEID) > 0) {
+            if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
               item.setSymbol(symbolBusy);
-            }else{
-              if(SPACEID.substring(0, SPACEID.length-1).endsWith('A')){
+
+              //console.log(item);
+            } else {
+              if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
                 item.setSymbol(symbolFree);
               }
             }
           });
         });
 
+        layerRooms.redraw();
+
 
       });
 
@@ -163,20 +196,12 @@
 
 
 
-      //close the dialog when the mouse leaves the highlight graphic
-      map.on("load", function() {
-
-
-        map.graphics.enableMouseEvents();
-        map.graphics.on("mouse-out", closeDialog);
-
-      });
 
 
 
 
-      var queryTask = new QueryTask("http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0");
 
+      var queryTask = new QueryTask(urlCalendar);
       var query = new Query();
       query.returnGeometry = false;
       query.outFields = ["*"];
@@ -186,23 +211,93 @@
       layerRooms.on("click", function(evt) {
         console.log(evt.graphic.attributes);
 
-        query.where = "RoomNumber= '" + evt.graphic.attributes.SPACEID + "'";
+        var dayStart = currentDate.format("MM/DD/YYYY") +  ' 00:00:00 AM';
+        var dayEnd =  currentDate.format("MM/DD/YYYY") + ' 11:59:59 PM';
+
+        query.where = "RoomNumber= '" + evt.graphic.attributes.SPACEID + "' AND Start_Date >= '" + dayStart + "' AND End_Date <= '" + dayEnd + "'";
+        console.log('selected room:' + query.where);
         queryTask.execute(query, showResults);
 
         function showResults(results) {
-          console.log(results.features)
-          var t = "<b>${SPACEID}</b><hr><b>Current Class: </b>${TITLE}<br>" + "<b>From:</b> ${FROM:DateFormat(selector:'time')}, <b>To:</b> ${TO:DateFormat(selector:'time')}<br>";
+
+          var roomCalendar = {};
+          //finished classes
+          roomCalendar.before = [];
+          roomCalendar.next = [];
+          roomCalendar.now = [];
+
+          console.log(results.features);
+          results.features.forEach(function(item) {
+            classStart = moment(item.attributes.Start_Date);
+            classEnd = moment(item.attributes.End_Date);
+
+            console.log(classStart);
+            console.log(classEnd);
+            console.log(currentDate);
+
+
+            if (currentDate >= classStart && currentDate <= classEnd) {
+              roomCalendar.now.push(item);
+            } else if (currentDate > classEnd) {
+              roomCalendar.before.push(item);
+            } else if (classStart > currentDate) {
+              roomCalendar.next.push(item);
+            } else {
+
+              item.attributes.classStart = classStart;
+              item.attributes.classEnd = classEnd;
+              item.attributes.now = currentDate;
+              console.log('else:');
+              console.log(item);
+            }
+
+
+          });
+
+          console.log(roomCalendar);
+
+          var title = "<b>${SPACEID}</b><hr>" ;
+          var current =  "<b>Current Class: </b>${TITLE}<br><b>From:</b> ${FROM:DateFormat(selector:'time')}, <b>To:</b> ${TO:DateFormat(selector:'time')}<br>";
+
+          var nextText = "<br /> <b>Next:</b><br />";
+          var nextClass = "<b>${TITLE}:</b> ${FROM:DateFormat(selector:'time')} - ${TO:DateFormat(selector:'time')}<br>";
           //   + "<b>2007 Population: </b>${POP2007:NumberFormat}<br>"
           //   + "<b>2007 Population per Sq. Mi.: </b>${POP07_SQMI:NumberFormat}";
 
-          var data = {
-            SPACEID: evt.graphic.attributes.SPACEID,
-            TITLE: results.features[0].attributes.Title,
-            FROM: results.features[0].attributes.Start_Date,
-            TO: results.features[0].attributes.End_Date
+
+          var content = esriLang.substitute({SPACEID: evt.graphic.attributes.SPACEID}, title);
+          if(roomCalendar.now.length > 0){
+          content += esriLang.substitute({
+            TITLE: roomCalendar.now[0].attributes.Title,
+            FROM: roomCalendar.now[0].attributes.Start_Date,
+            TO: roomCalendar.now[0].attributes.End_Date
+          }, current);
+
+        }else{
+          if(roomCalendar.next.length == 0){
+            content += 'No Classes today.';
+          }else{
+            content += 'No Class right now.';
           }
 
-          var content = esriLang.substitute(data, t);
+        }
+
+          console.log(roomCalendar);
+          if (roomCalendar.next.length > 0) {
+            content += nextText;
+
+            roomCalendar.next.forEach(function(item) {
+
+              content += esriLang.substitute({
+                TITLE: item.attributes.Title,
+                FROM: item.attributes.Start_Date,
+                TO: item.attributes.End_Date
+              }, nextClass);
+
+            });
+
+          }
+
           var highlightGraphic = new Graphic(evt.graphic.geometry, symbolSelected);
           map.graphics.add(highlightGraphic);
 
