@@ -34,9 +34,14 @@
   <script src="moment.js"></script>
   <script src="http://js.arcgis.com/3.11/"></script>
   <script>
+    var app = {};
     var map, dialog, webmapId = "122317f9c97843e58dabe1a21bb12363";
     var urlCalendar = "http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0";
     var urlCurrentFloor = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/14";
+    app.floors = [2, 5, 8, 11, 14];
+    app.currentFloor = 4;
+    app.currentLayer;
+    app.urlBulding = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/";
     var baseMap = 'http://smartcampus.sg.uji.es:6080/arcgis/rest/services/PERCEPTION/viscaUJI_White4/MapServer';
     var currentDate = moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
 
@@ -85,21 +90,7 @@
       var tiled = new Tiled(baseMap);
       map.addLayer(tiled);
 
-
-
-      // rooms kayers
-
-      var layerRooms = new FeatureLayer(urlCurrentFloor, {
-        mode: FeatureLayer.MODE_SNAPSHOT,
-        outFields: ["*"],
-        //defaultDefinitionExpression: "BUILDING  = 'TD' and SPACETYPE like 'A%'"
-        showLabels: true
-      });
-
-
-
       //SYMPOLS
-
       var symbolDefault = new SimpleFillSymbol()
         .setOutline(
           new SimpleLineSymbol()
@@ -122,22 +113,103 @@
       var symbolOffice = new SimpleFillSymbol()
         .setColor(new Color([241, 196, 15]));
 
-      layerRooms.setRenderer(new SimpleRenderer(symbolDefault));
-      map.addLayer(layerRooms);
+      layers = [];
+      app.floors.forEach(function(floorNumber) {
+        var urlCurrentFloor = app.urlBulding + floorNumber;
+        console.log(urlCurrentFloor);
+
+        var layer = new FeatureLayer(urlCurrentFloor, {
+          mode: FeatureLayer.MODE_SNAPSHOT,
+          outFields: ["*"],
+          //defaultDefinitionExpression: "BUILDING  = 'TD' and SPACETYPE like 'A%'"
+          showLabels: true,
+          visible: false,
+          id: 'floor_' + floorNumber
+        });
+
+        layer.setRenderer(new SimpleRenderer(symbolDefault));
+        map.addLayer(layer);
+        layers.push(layer);
+
+      });
+
+      console.log(layers);
+
+
+
+
+      app.selectLayer = function(layerNumber) {
+
+        app.floors.forEach(function(floor, index) {
+          layer = layers[index];
+          layer.setVisibility(false);
+        });
+
+        app.currentLayer = layers[layerNumber];
+        app.currentLayer.setVisibility(true);
+
+        //get busy
+        var queryTask = new QueryTask(urlCalendar);
+        var query = new Query();
+        query.returnGeometry = false;
+        query.outFields = ["RoomNumber"];
+        query.where = esriLang.substitute({
+          NOW: currentDate.utc().format('MM/DD/YYYY h:mm:ss a')
+        }, "Start_Date <= '${NOW}' and End_Date  >= '${NOW}'");
+
+        console.log('Select Busy Rooms:' + query.where);
+
+        var busyRooms = [];
+        queryTask.execute(query, function(results) {
+          results.features.forEach(function(item) {
+            busyRooms.push(item.attributes.RoomNumber);
+          });
+
+          console.log('busyRooms: ');
+          console.log(busyRooms);
+          //select busy rooms
+          var queryFeature = new Query();
+          //queryFeature.where = "SPACEID in  (" + "'" + busyRooms.join("','") + "'" + ")";
+          queryFeature.where = "1=1";
+          app.currentLayer.queryFeatures(queryFeature, function(result) {
+            console.log('rooms ' + result.features.length);
+            result.features.forEach(function(item) {
+              var SPACEID = item.attributes.SPACEID;
+              if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
+                item.setSymbol(symbolBusy);
+              } else {
+                if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
+                  item.setSymbol(symbolFree);
+                }
+              }
+            });
+          });
+
+          app.currentLayer.redraw();
+
+
+        }); //queryTask.execute
+      }
+
+      app.selectLayer (app.currentFloor);
+
 
 
       // //label
-      var labelRoom = new TextSymbol();
-        labelRoom.font.setSize("6pt");
-        labelRoom.font.setFamily("arial");
-
-        var layerLabel = new LabelLayer({ id: "layerLabel" , visible: true});
-        var labelField = 'SPACEID';
-        // tell the label layer to label the countries feature layer
-        // using the field named "admin"
-
-        layerLabel.addFeatureLayer(layerRooms, new SimpleRenderer(labelRoom), "{" + labelField + "}");
-      //  map.addLayer(layerLabel);
+      // var labelRoom = new TextSymbol();
+      // labelRoom.font.setSize("6pt");
+      // labelRoom.font.setFamily("arial");
+      //
+      // var layerLabel = new LabelLayer({
+      //   id: "layerLabel",
+      //   visible: true
+      // });
+      // var labelField = 'SPACEID';
+      // // tell the label layer to label the countries feature layer
+      // // using the field named "admin"
+      //
+      // layerLabel.addFeatureLayer(layerRooms, new SimpleRenderer(labelRoom), "{" + labelField + "}");
+      // //  map.addLayer(layerLabel);
 
 
       map.infoWindow.resize(245, 125);
@@ -150,72 +222,19 @@
 
       //close the dialog when the mouse leaves the highlight graphic
       map.on("load", function() {
-
-
         map.graphics.enableMouseEvents();
         map.graphics.on("mouse-out", closeDialog);
-
       });
 
-      map.on('zoom-end', function(event) {
-        console.log(event);
-        if (event.level >= 5) {
-          layerLabel.setVisibility(true);
-        } else {
-          layerLabel.setVisibility(false);
-        }
-
-      });
-
-      //get busy
-      var queryTask = new QueryTask(urlCalendar);
-      var query = new Query();
-      query.returnGeometry = false;
-      query.outFields = ["RoomNumber"];
-      query.where = esriLang.substitute({
-        NOW: currentDate.utc().format('MM/DD/YYYY h:mm:ss a')
-      }, "Start_Date <= '${NOW}' and End_Date  >= '${NOW}'");
-
-      console.log('Select Busy Rooms:' + query.where);
-
-      var busyRooms = [];
-      queryTask.execute(query, function(results) {
-        results.features.forEach(function(item) {
-          busyRooms.push(item.attributes.RoomNumber);
-        });
-
-        console.log('busyRooms: ');
-        console.log(busyRooms);
-
-        //select busy rooms
-        var queryFeature = new Query();
-        //queryFeature.where = "SPACEID in  (" + "'" + busyRooms.join("','") + "'" + ")";
-        queryFeature.where = "1=1";
-        layerRooms.queryFeatures(queryFeature, function(result) {
-          console.log('rooms ' + result.features.length);
-          result.features.forEach(function(item) {
-            var SPACEID = item.attributes.SPACEID;
-            if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
-              item.setSymbol(symbolBusy);
-            } else {
-              if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
-                item.setSymbol(symbolFree);
-              }
-            }
-          });
-        });
-
-        layerRooms.redraw();
-
-
-      });
-
-
-
-
-
-
-
+      // map.on('zoom-end', function(event) {
+      //   console.log(event);
+      //   if (event.level >= 5) {
+      //     layerLabel.setVisibility(true);
+      //   } else {
+      //     layerLabel.setVisibility(false);
+      //   }
+      //
+      // });
 
 
 
@@ -227,7 +246,7 @@
       //listen for when the onMouseOver event fires on the countiesGraphicsLayer
       //when fired, create a new graphic with the geometry from the event.graphic and add it to the maps graphics layer
       var highlightGraphic;
-      layerRooms.on("click", function(evt) {
+      app.currentLayer.on("click", function(evt) {
         console.log(evt.graphic.attributes);
 
         var dayStart = currentDate.format("MM/DD/YYYY") + ' 00:00:00 AM';
@@ -332,20 +351,12 @@
           });
 
 
-          //   var resultItems = [];
-          //   var resultCount = results.features.length;
-          //   for (var i = 0; i < resultCount; i++) {
-          //     var featureAttributes = results.features[i].attributes;
-          //     for (var attr in featureAttributes) {
-          //       resultItems.push("<b>" + attr + ":</b>  " + featureAttributes[attr] + "<br>");
-          //     }
-          //     resultItems.push("<br>");
-          //   }
-          //   dom.byId("info").innerHTML = resultItems.join("");
         }
 
 
-      });
+      }); //end onclick
+
+
 
       function closeDialog() {
         //map.graphics.clear();
