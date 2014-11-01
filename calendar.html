@@ -37,8 +37,11 @@
     var map, dialog, webmapId = "122317f9c97843e58dabe1a21bb12363";
     var urlCalendar = "http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0";
     var urlCurrentFloor = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/14";
+    var urlBuldings = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/";
     var baseMap = 'http://smartcampus.sg.uji.es:6080/arcgis/rest/services/PERCEPTION/viscaUJI_White4/MapServer';
     var currentDate = moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
+
+    var floorIds = [5, 8, 11, 14];
 
     console.log(currentDate);
 
@@ -58,6 +61,7 @@
       "esri/tasks/query", "esri/tasks/QueryTask",
       "esri/symbols/TextSymbol", "esri/layers/LabelLayer",
       "esri/layers/ArcGISTiledMapServiceLayer",
+      "esri/layers/ArcGISDynamicMapServiceLayer", "esri/layers/ImageParameters",
       "dojo/domReady!"
     ], function(
       Map, FeatureLayer,
@@ -68,7 +72,8 @@
       arcgisUtils, Legend,
       Query, QueryTask,
       TextSymbol, LabelLayer,
-      Tiled
+      Tiled,
+      ArcGISDynamicMapServiceLayer, ImageParameters
     ) {
 
       // DECLARATIONS
@@ -85,6 +90,27 @@
       var tiled = new Tiled(baseMap);
       map.addLayer(tiled);
 
+
+      // define map layers for floors
+      var imageParameters = new ImageParameters();
+      //  var layerDefs = [];
+      //       layerDefs[5] = "STATE_NAME='Kansas'";
+      //       layerDefs[4] = "STATE_NAME='Kansas' and POP2007>25000";
+      //       layerDefs[3] = "STATE_NAME='Kansas' and POP2007>25000";
+      //       imageParameters.layerDefinitions = layerDefs;
+
+      //I want layers 5,4, and 3 to be visible
+      imageParameters.layerIds = floorIds;
+      imageParameters.layerOption = ImageParameters.LAYER_OPTION_SHOW;
+      imageParameters.transparent = true;
+
+      //construct ArcGISDynamicMapServiceLayer with imageParameters from above
+      var dynamicMapServiceLayer = new ArcGISDynamicMapServiceLayer(urlBuldings, {"imageParameters": imageParameters});
+      map.addLayer(dynamicMapServiceLayer);
+
+      dynamicMapServiceLayer.setVisibleLayers([5,8]);
+
+      //console.log(map.getLayer('layer1'));
 
 
       // rooms kayers
@@ -123,20 +149,20 @@
         .setColor(new Color([241, 196, 15]));
 
       layerRooms.setRenderer(new SimpleRenderer(symbolDefault));
-      map.addLayer(layerRooms);
+      //map.addLayer(layerRooms);
 
 
       // //label
       var labelRoom = new TextSymbol();
-        labelRoom.font.setSize("6pt");
-        labelRoom.font.setFamily("arial");
+      labelRoom.font.setSize("6pt");
+      labelRoom.font.setFamily("arial");
 
-        var layerLabel = new LabelLayer({ id: "layerLabel" , visible: true});
-        var labelField = 'SPACEID';
-        // tell the label layer to label the countries feature layer
-        // using the field named "admin"
-
-        layerLabel.addFeatureLayer(layerRooms, new SimpleRenderer(labelRoom), "{" + labelField + "}");
+      var layerLabel = new LabelLayer({
+        id: "layerLabel",
+        visible: true
+      });
+      var labelField = 'SPACEID';
+      layerLabel.addFeatureLayer(layerRooms, new SimpleRenderer(labelRoom), "{" + labelField + "}");
       //  map.addLayer(layerLabel);
 
 
