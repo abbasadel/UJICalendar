@@ -37,7 +37,7 @@
     var map, dialog, webmapId = "122317f9c97843e58dabe1a21bb12363";
     var urlCalendar = "http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0";
     var urlCurrentFloor = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/14";
-    var baseMap = 'http://smartcampus.sg.uji.es/adaptor/rest/services/SmartCampus/SmartCampus/MapServer';
+    var baseMap = 'http://smartcampus.sg.uji.es:6080/arcgis/rest/services/PERCEPTION/viscaUJI_White4/MapServer';
     var currentDate = moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
 
     console.log(currentDate);
@@ -57,6 +57,7 @@
       "esri/arcgis/utils", "esri/dijit/Legend",
       "esri/tasks/query", "esri/tasks/QueryTask",
       "esri/symbols/TextSymbol", "esri/layers/LabelLayer",
+      "esri/layers/ArcGISTiledMapServiceLayer",
       "dojo/domReady!"
     ], function(
       Map, FeatureLayer,
@@ -66,20 +67,23 @@
       TooltipDialog, dijitPopup,
       arcgisUtils, Legend,
       Query, QueryTask,
-      TextSymbol, LabelLayer
+      TextSymbol, LabelLayer,
+      Tiled
     ) {
 
       // DECLARATIONS
 
       //The base map
       map = new Map("mapDiv", {
-        basemap: "topo",
+        //basemap: "topo",
         center: [-0.0675706, 39.9927566],
-        zoom: 19,
-        maxZoom: 25
+        zoom: 4 //,
+          //maxZoom: 25
           //slider: false
       });
 
+      var tiled = new Tiled(baseMap);
+      map.addLayer(tiled);
 
 
 
@@ -87,22 +91,12 @@
 
       var layerRooms = new FeatureLayer(urlCurrentFloor, {
         mode: FeatureLayer.MODE_SNAPSHOT,
-        outFields: ["*"] //,
-          //defaultDefinitionExpression: "BUILDING  = 'TD' and SPACETYPE like 'A%'"
+        outFields: ["*"],
+        //defaultDefinitionExpression: "BUILDING  = 'TD' and SPACETYPE like 'A%'"
+        showLabels: true
       });
 
-      // var labelRoom = new TextSymbol();
-      //   labelRoom.font.setSize("6pt");
-      //   labelRoom.font.setFamily("arial");
-      //
-      //   var statesLabelRenderer = new SimpleRenderer(labelRoom);
-      //   var layerLabel = new LabelLayer({ id: "layerLabel" });
-      //   var labelField = 'SPACEID';
-      //   // tell the label layer to label the countries feature layer
-      //   // using the field named "admin"
-      //   layerLabel.addFeatureLayer(layerRooms, statesLabelRenderer, "{" + labelField + "}");
-      //   // add the label layer to the map
-      //   map.addLayer(layerLabel);
+
 
       //SYMPOLS
 
@@ -132,6 +126,20 @@
       map.addLayer(layerRooms);
 
 
+      // //label
+      var labelRoom = new TextSymbol();
+        labelRoom.font.setSize("6pt");
+        labelRoom.font.setFamily("arial");
+
+        var layerLabel = new LabelLayer({ id: "layerLabel" , visible: true});
+        var labelField = 'SPACEID';
+        // tell the label layer to label the countries feature layer
+        // using the field named "admin"
+
+        layerLabel.addFeatureLayer(layerRooms, new SimpleRenderer(labelRoom), "{" + labelField + "}");
+      //  map.addLayer(layerLabel);
+
+
       map.infoWindow.resize(245, 125);
 
       dialog = new TooltipDialog({
@@ -149,12 +157,24 @@
 
       });
 
+      map.on('zoom-end', function(event) {
+        console.log(event);
+        if (event.level >= 5) {
+          layerLabel.setVisibility(true);
+        } else {
+          layerLabel.setVisibility(false);
+        }
+
+      });
+
       //get busy
       var queryTask = new QueryTask(urlCalendar);
       var query = new Query();
       query.returnGeometry = false;
       query.outFields = ["RoomNumber"];
-      query.where = esriLang.substitute({NOW: currentDate.utc().format('MM/DD/YYYY h:mm:ss a') }, "Start_Date <= '${NOW}' and End_Date  >= '${NOW}'");
+      query.where = esriLang.substitute({
+        NOW: currentDate.utc().format('MM/DD/YYYY h:mm:ss a')
+      }, "Start_Date <= '${NOW}' and End_Date  >= '${NOW}'");
 
       console.log('Select Busy Rooms:' + query.where);
 
@@ -177,8 +197,6 @@
             var SPACEID = item.attributes.SPACEID;
             if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
               item.setSymbol(symbolBusy);
-
-              //console.log(item);
             } else {
               if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
                 item.setSymbol(symbolFree);
@@ -208,11 +226,12 @@
 
       //listen for when the onMouseOver event fires on the countiesGraphicsLayer
       //when fired, create a new graphic with the geometry from the event.graphic and add it to the maps graphics layer
+      var highlightGraphic;
       layerRooms.on("click", function(evt) {
         console.log(evt.graphic.attributes);
 
-        var dayStart = currentDate.format("MM/DD/YYYY") +  ' 00:00:00 AM';
-        var dayEnd =  currentDate.format("MM/DD/YYYY") + ' 11:59:59 PM';
+        var dayStart = currentDate.format("MM/DD/YYYY") + ' 00:00:00 AM';
+        var dayEnd = currentDate.format("MM/DD/YYYY") + ' 11:59:59 PM';
 
         query.where = "RoomNumber= '" + evt.graphic.attributes.SPACEID + "' AND Start_Date >= '" + dayStart + "' AND End_Date <= '" + dayEnd + "'";
         console.log('selected room:' + query.where);
@@ -256,8 +275,8 @@
 
           console.log(roomCalendar);
 
-          var title = "<b>${SPACEID}</b><hr>" ;
-          var current =  "<b>Current Class: </b>${TITLE}<br><b>From:</b> ${FROM:DateFormat(selector:'time')}, <b>To:</b> ${TO:DateFormat(selector:'time')}<br>";
+          var title = "<b>${SPACEID}</b><hr>";
+          var current = "<b>Current Class: </b>${TITLE}<br><b>From:</b> ${FROM:DateFormat(selector:'time')}, <b>To:</b> ${TO:DateFormat(selector:'time')}<br>";
 
           var nextText = "<br /> <b>Next:</b><br />";
           var nextClass = "<b>${TITLE}:</b> ${FROM:DateFormat(selector:'time')} - ${TO:DateFormat(selector:'time')}<br>";
@@ -265,22 +284,24 @@
           //   + "<b>2007 Population per Sq. Mi.: </b>${POP07_SQMI:NumberFormat}";
 
 
-          var content = esriLang.substitute({SPACEID: evt.graphic.attributes.SPACEID}, title);
-          if(roomCalendar.now.length > 0){
-          content += esriLang.substitute({
-            TITLE: roomCalendar.now[0].attributes.Title,
-            FROM: roomCalendar.now[0].attributes.Start_Date,
-            TO: roomCalendar.now[0].attributes.End_Date
-          }, current);
+          var content = esriLang.substitute({
+            SPACEID: evt.graphic.attributes.SPACEID
+          }, title);
+          if (roomCalendar.now.length > 0) {
+            content += esriLang.substitute({
+              TITLE: roomCalendar.now[0].attributes.Title,
+              FROM: roomCalendar.now[0].attributes.Start_Date,
+              TO: roomCalendar.now[0].attributes.End_Date
+            }, current);
 
-        }else{
-          if(roomCalendar.next.length == 0){
-            content += 'No Classes today.';
-          }else{
-            content += 'No Class right now.';
+          } else {
+            if (roomCalendar.next.length == 0) {
+              content += 'No Classes today.';
+            } else {
+              content += 'No Class right now.';
+            }
+
           }
-
-        }
 
           console.log(roomCalendar);
           if (roomCalendar.next.length > 0) {
@@ -298,7 +319,7 @@
 
           }
 
-          var highlightGraphic = new Graphic(evt.graphic.geometry, symbolSelected);
+          highlightGraphic = new Graphic(evt.graphic.geometry, symbolSelected);
           map.graphics.add(highlightGraphic);
 
           dialog.setContent(content);
@@ -327,7 +348,8 @@
       });
 
       function closeDialog() {
-        map.graphics.clear();
+        //map.graphics.clear();
+        map.graphics.remove(highlightGraphic);
 
         dijitPopup.close(dialog);
       }
