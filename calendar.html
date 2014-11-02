@@ -44,7 +44,7 @@
     app.currentLayer;
     app.urlBulding = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/";
     var baseMap = 'http://smartcampus.sg.uji.es:6080/arcgis/rest/services/PERCEPTION/viscaUJI_White4/MapServer';
-    var currentDate = moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
+    var currentDate = moment(); //moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
 
     console.log('currentDate:');
     console.log(currentDate);
@@ -63,9 +63,9 @@
       "dijit/TooltipDialog", "dijit/popup",
       "esri/arcgis/utils", "esri/dijit/Legend",
       "esri/tasks/query", "esri/tasks/QueryTask",
-      "esri/symbols/TextSymbol", "esri/layers/LabelLayer",
+      "esri/symbols/TextSymbol", "esri/layers/LabelLayer", "esri/symbols/Font",
       "esri/layers/ArcGISTiledMapServiceLayer",
-      "dojo/dom", "dojo/on", "dojo/dom-class", "dojo/_base/json", "dojo/_base/array", "dojo/string", "dojo/dom-attr",
+      "dojo/dom", "dojo/on", "dojo/dom-class", "dojo/_base/json", "dojo/_base/array", "dojo/string", "dojo/dom-attr", "dojox/timing",
       "dojo/domReady!"
     ], function(
       Map, FeatureLayer,
@@ -75,9 +75,9 @@
       TooltipDialog, dijitPopup,
       arcgisUtils, Legend,
       Query, QueryTask,
-      TextSymbol, LabelLayer,
+      TextSymbol, LabelLayer, Font,
       Tiled,
-      dom, on, domClass, dojoJson, array, dojoString, attr
+      dom, on, domClass, dojoJson, array, dojoString, attr, timing
     ) {
 
       // DECLARATIONS
@@ -155,6 +155,24 @@
           app.currentLayer = layers[layerNumber];
           app.currentLayer.setVisibility(true);
 
+          //
+          // //label
+          // var labelRoom = new TextSymbol();
+          // labelRoom.font.setSize("6pt");
+          // labelRoom.font.setFamily("arial");
+          //
+          // var layerLabel = new LabelLayer({
+          //   id: "layerLabel",
+          //   visible: true
+          // });
+          // var labelField = 'SPACEID';
+          // // tell the label layer to label the countries feature layer
+          // // using the field named "admin"
+          //
+          // layerLabel.addFeatureLayer(layerRooms, new SimpleRenderer(labelRoom), "{" + labelField + "}");
+          // map.addLayer(layerLabel);
+
+
           //get busy
           var queryTask = new QueryTask(urlCalendar);
           var query = new Query();
@@ -184,6 +202,7 @@
                 var SPACEID = item.attributes.SPACEID;
                 if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
                   item.setSymbol(symbolBusy);
+
                 } else {
                   if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
                     item.setSymbol(symbolFree);
@@ -322,21 +341,6 @@
 
 
 
-      // //label
-      // var labelRoom = new TextSymbol();
-      // labelRoom.font.setSize("6pt");
-      // labelRoom.font.setFamily("arial");
-      //
-      // var layerLabel = new LabelLayer({
-      //   id: "layerLabel",
-      //   visible: true
-      // });
-      // var labelField = 'SPACEID';
-      // // tell the label layer to label the countries feature layer
-      // // using the field named "admin"
-      //
-      // layerLabel.addFeatureLayer(layerRooms, new SimpleRenderer(labelRoom), "{" + labelField + "}");
-      // //  map.addLayer(layerLabel);
 
 
       map.infoWindow.resize(245, 125);
@@ -394,6 +398,12 @@
       app.selectLayer(app.currentFloor);
 
       dojo.byId("currentDate").innerHTML = currentDate.format("dddd, MMMM Do YYYY, h:mm:ss a");
+
+      t = new dojox.timing.Timer(1000);
+      t.onTick = function() {
+        dojo.byId("currentDate").innerHTML = moment().format("dddd, MMMM Do YYYY, h:mm:ss a");
+      }
+      t.start();
 
 
     });
