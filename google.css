@@ -1,0 +1,70 @@
+html, body {
+    font-family: Roboto,Arial,sans-serif;
+}
+
+.widget-floorpicker {
+    background: none repeat scroll 0% 0% #FFF;
+    box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    position: relative;
+    width: 29px;
+    overflow: hidden;
+    -moz-user-select: none;
+}
+
+.widget-floorpicker {
+    text-align: center;
+}
+
+.widget-floorpicker-slider {
+    position: relative;
+    transition: all 120ms ease-in-out 0s;
+}
+
+a, button, h1, h2, h3, h4, h5, h6, input, ol, p, ul, th {
+    margin: 0px;
+    padding: 0px;
+    border: 0px none;
+    outline: 0px none;
+    font: inherit;
+    vertical-align: baseline;
+    background: none repeat scroll 0% 0% transparent;
+    list-style: none outside none;
+}
+
+.widget-floorpicker {
+    text-align: center;
+}
+
+a, button, h1, h2, h3, h4, h5, h6, input, ol, p, ul, th {
+    font: inherit;
+    list-style: none outside none;
+}
+
+.widget-floorpicker-button {
+    z-index: 2;
+    color: #666;
+    font-size: 14px;
+    background-color: #FFF;
+    width: 29px;
+    height: 29px;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition-duration: 0.16s;
+    transition-property: background-color;
+    transition-timing-function: ease-out;
+}
+
+.widget-floorpicker-button-selected {
+    color: #000;
+    background: none repeat scroll 0% 0% #F1F1F1;
+    font-weight: bold;
+}
+
+
+#floors{
+  position: absolute;
+  bottom:100px;
+  right: 20px;
+  z-index:6;
+  }

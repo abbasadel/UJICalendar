@@ -10,6 +10,7 @@
 
   <link rel="stylesheet" href="http://js.arcgis.com/3.11/dijit/themes/tundra/tundra.css">
   <link rel="stylesheet" href="http://js.arcgis.com/3.11/esri/css/esri.css">
+  <link rel="stylesheet" href="google.css">
   <style>
     html,
     body,
@@ -191,7 +192,7 @@
         }); //queryTask.execute
       }
 
-      app.selectLayer (app.currentFloor);
+      app.selectLayer(app.currentFloor);
 
 
 
@@ -370,6 +371,27 @@
 </head>
 
 <body class="tundra">
+
+  <div id="floors">
+    <div style="height:;bottom:" class="widget-floorpicker widget-floorpicker-without-mylocation">
+      <ul class="widget-floorpicker-slider">
+        <li>
+          <button class="widget-floorpicker-button">3</button>
+        </li>
+        <li>
+          <button class="widget-floorpicker-button">2</button>
+        </li>
+        <li>
+          <button class="widget-floorpicker-button">1</button>
+        </li>
+        <li>
+          <button class="widget-floorpicker-button widget-floorpicker-button-selected">0</button>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
   <div id="mapDiv">
     <!-- <div id="info">
             Hover over a county in South Carolina to get more information.
