@@ -42,6 +42,10 @@
     app.floors = [5, 8, 11, 14, 17];
     app.currentFloor = 0;
     app.currentLayer;
+    app.legend = {
+      busy: 0,
+      free: 0
+    };
     app.urlBulding = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/";
     var baseMap = 'http://smartcampus.sg.uji.es:6080/arcgis/rest/services/PERCEPTION/viscaUJI_White4/MapServer';
     var currentDate = moment(); //moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
@@ -144,7 +148,8 @@
 
 
       app.selectLayer = function(layerNumber) {
-
+          app.legend.busy=0;
+          app.legend.free=0;
           closeDialog();
 
           app.floors.forEach(function(floor, index) {
@@ -202,16 +207,24 @@
                 var SPACEID = item.attributes.SPACEID;
                 if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
                   item.setSymbol(symbolBusy);
+                  app.legend.busy++;
 
                 } else {
                   if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
                     item.setSymbol(symbolFree);
+                    app.legend.free++;
                   }
                 }
               });
+
+              app.currentLayer.redraw();
+              dojo.query("#legend-busy").attr('value', 'Busy Rooms (' + app.legend.busy + ')');
+              dojo.query("#legend-free").attr('value', 'Free Rooms (' + app.legend.free + ')');
+              console.log(app.legend);
+
             });
 
-            app.currentLayer.redraw();
+
 
 
           }); //queryTask.execute
@@ -336,6 +349,8 @@
           }); //end onclick
 
 
+
+
         } //end select layer
 
 
@@ -428,14 +443,14 @@
           </li>
           <li>
             <div class="input-color">
-              <input type="text" value="Busy Room" />
+              <input type="text" id="legend-busy" value="Busy Rooms" />
               <div class="color-box" style="background-color: rgb(232, 76, 61);"></div>
               <!-- Replace "navy" to change the color -->
             </div>
           </li>
           <li>
             <div class="input-color">
-              <input type="text" value="Free Room" />
+              <input type="text" id="legend-free" value="Free Rooms" />
               <div class="color-box" style="background-color: rgb(45, 204, 112);"></div>
               <!-- Replace "#FF850A" to change the color -->
             </div>
