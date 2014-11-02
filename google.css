@@ -145,7 +145,6 @@ th {
   color: none;
   -webkit-user-select: none;
 }
-
 .esriSimpleSliderTL {
   top: 20px;
   right: 20px;
@@ -160,10 +159,41 @@ th {
   overflow: hidden;
   -moz-user-select: none;
 }
-
 .esriSimpleSliderVertical .esriSimpleSliderIncrementButton,
-.esriSimpleSliderVertical .esriSimpleSliderDecrementButton{
- border-bottom: 0;
- -webkit-border-radius: 0;
- border-radius: 0;
+.esriSimpleSliderVertical .esriSimpleSliderDecrementButton {
+  border-bottom: 0;
+  -webkit-border-radius: 0;
+  border-radius: 0;
+}
+h1 {
+  font-size: 24px;
+  line-height: 33px;
+  margin-bottom: 2px;
+}
+h2 {
+  font-size: 16px;
+}
+/** legend **/
+
+#legend ul {
+  margin: 10px 10px 4px 0px;
+}
+#legend .input-color {
+  position: relative;
+}
+#legend .input-color input {
+  padding-left: 20px;
+}
+#legend .input-color .color-box {
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+  background-color: #ccc;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+#legend li {
+  display: inline-block;
+  width: 32%;
 }

@@ -39,7 +39,7 @@
     var map, dialog, webmapId = "122317f9c97843e58dabe1a21bb12363";
     var urlCalendar = "http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0";
     var urlCurrentFloor = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/14";
-    app.floors = [ 5, 8, 11, 14, 17];
+    app.floors = [5, 8, 11, 14, 17];
     app.currentFloor = 0;
     app.currentLayer;
     app.urlBulding = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/";
@@ -393,6 +393,8 @@
 
       app.selectLayer(app.currentFloor);
 
+      dojo.byId("currentDate").innerHTML = currentDate.format("dddd, MMMM Do YYYY, h:mm:ss a");
+
 
     });
   </script>
@@ -401,9 +403,38 @@
 <body class="tundra">
 
   <div id="cards">
-    <div class="cards-card" >
-      abbbas
+    <div class="cards-card">
+      <h1>UJI Calendar</h1>
+      <h2 id="currentDate"></h2>
+
+      <div id="legend">
+        <ul>
+          <li>
+            <div class="input-color">
+              <input type="text" value="Office Room" />
+              <div class="color-box" style="background-color: rgb(53, 152, 220);"></div>
+              <!-- Replace "#FF850A" to change the color -->
+            </div>
+          </li>
+          <li>
+            <div class="input-color">
+              <input type="text" value="Busy Room" />
+              <div class="color-box" style="background-color: rgb(232, 76, 61);"></div>
+              <!-- Replace "navy" to change the color -->
+            </div>
+          </li>
+          <li>
+            <div class="input-color">
+              <input type="text" value="Free Room" />
+              <div class="color-box" style="background-color: rgb(45, 204, 112);"></div>
+              <!-- Replace "#FF850A" to change the color -->
+            </div>
+          </li>
+        </ul>
+      </div>
     </div>
+
+
   </div>
 
   <div id="floors">
