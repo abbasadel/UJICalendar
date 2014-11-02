@@ -39,13 +39,14 @@
     var map, dialog, webmapId = "122317f9c97843e58dabe1a21bb12363";
     var urlCalendar = "http://services1.arcgis.com/k8WRSCmxGgCwZufI/ArcGIS/rest/services/UJICalendar.gdb/FeatureServer/0";
     var urlCurrentFloor = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/14";
-    app.floors = [2, 5, 8, 11, 14];
-    app.currentFloor = 4;
+    app.floors = [ 5, 8, 11, 14, 17];
+    app.currentFloor = 0;
     app.currentLayer;
     app.urlBulding = "http://smartcampus.sg.uji.es:6080/arcgis/rest/services/SmartCampus/BuildingInteriorbyFloorNew/MapServer/";
     var baseMap = 'http://smartcampus.sg.uji.es:6080/arcgis/rest/services/PERCEPTION/viscaUJI_White4/MapServer';
     var currentDate = moment("2014-10-29 13:00:00"); //new Date(2014, 9, 29, 13, 0, 0);
 
+    console.log('currentDate:');
     console.log(currentDate);
 
     if (typeof String.prototype.endsWith !== 'function') {
@@ -64,6 +65,7 @@
       "esri/tasks/query", "esri/tasks/QueryTask",
       "esri/symbols/TextSymbol", "esri/layers/LabelLayer",
       "esri/layers/ArcGISTiledMapServiceLayer",
+      "dojo/dom", "dojo/on", "dojo/dom-class", "dojo/_base/json", "dojo/_base/array", "dojo/string", "dojo/dom-attr",
       "dojo/domReady!"
     ], function(
       Map, FeatureLayer,
@@ -74,7 +76,8 @@
       arcgisUtils, Legend,
       Query, QueryTask,
       TextSymbol, LabelLayer,
-      Tiled
+      Tiled,
+      dom, on, domClass, dojoJson, array, dojoString, attr
     ) {
 
       // DECLARATIONS
@@ -87,6 +90,9 @@
           //maxZoom: 25
           //slider: false
       });
+
+      var highlightGraphic;
+
 
       var tiled = new Tiled(baseMap);
       map.addLayer(tiled);
@@ -117,12 +123,11 @@
       layers = [];
       app.floors.forEach(function(floorNumber) {
         var urlCurrentFloor = app.urlBulding + floorNumber;
-        console.log(urlCurrentFloor);
 
         var layer = new FeatureLayer(urlCurrentFloor, {
           mode: FeatureLayer.MODE_SNAPSHOT,
           outFields: ["*"],
-          //defaultDefinitionExpression: "BUILDING  = 'TD' and SPACETYPE like 'A%'"
+          defaultDefinitionExpression: "BUILDING  = 'TD' and SPACETYPE like 'A%'",
           showLabels: true,
           visible: false,
           id: 'floor_' + floorNumber
@@ -134,65 +139,186 @@
 
       });
 
-      console.log(layers);
 
 
 
 
       app.selectLayer = function(layerNumber) {
 
-        app.floors.forEach(function(floor, index) {
-          layer = layers[index];
-          layer.setVisibility(false);
-        });
+          closeDialog();
 
-        app.currentLayer = layers[layerNumber];
-        app.currentLayer.setVisibility(true);
-
-        //get busy
-        var queryTask = new QueryTask(urlCalendar);
-        var query = new Query();
-        query.returnGeometry = false;
-        query.outFields = ["RoomNumber"];
-        query.where = esriLang.substitute({
-          NOW: currentDate.utc().format('MM/DD/YYYY h:mm:ss a')
-        }, "Start_Date <= '${NOW}' and End_Date  >= '${NOW}'");
-
-        console.log('Select Busy Rooms:' + query.where);
-
-        var busyRooms = [];
-        queryTask.execute(query, function(results) {
-          results.features.forEach(function(item) {
-            busyRooms.push(item.attributes.RoomNumber);
+          app.floors.forEach(function(floor, index) {
+            layer = layers[index];
+            layer.setVisibility(false);
           });
 
-          console.log('busyRooms: ');
-          console.log(busyRooms);
-          //select busy rooms
-          var queryFeature = new Query();
-          //queryFeature.where = "SPACEID in  (" + "'" + busyRooms.join("','") + "'" + ")";
-          queryFeature.where = "1=1";
-          app.currentLayer.queryFeatures(queryFeature, function(result) {
-            console.log('rooms ' + result.features.length);
-            result.features.forEach(function(item) {
-              var SPACEID = item.attributes.SPACEID;
-              if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
-                item.setSymbol(symbolBusy);
-              } else {
-                if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
-                  item.setSymbol(symbolFree);
-                }
-              }
+          app.currentLayer = layers[layerNumber];
+          app.currentLayer.setVisibility(true);
+
+          //get busy
+          var queryTask = new QueryTask(urlCalendar);
+          var query = new Query();
+          query.returnGeometry = false;
+          query.outFields = ["RoomNumber"];
+          query.where = esriLang.substitute({
+            NOW: currentDate.utc().format('MM/DD/YYYY h:mm:ss a')
+          }, "Start_Date <= '${NOW}' and End_Date  >= '${NOW}'");
+
+          console.log('Select Busy Rooms:' + query.where);
+
+          var busyRooms = [];
+          queryTask.execute(query, function(results) {
+            results.features.forEach(function(item) {
+              busyRooms.push(item.attributes.RoomNumber);
             });
-          });
 
-          app.currentLayer.redraw();
+            console.log('busyRooms: ');
+            console.log(busyRooms);
+            //select busy rooms
+            var queryFeature = new Query();
+            //queryFeature.where = "SPACEID in  (" + "'" + busyRooms.join("','") + "'" + ")";
+            queryFeature.where = "1=1";
+            app.currentLayer.queryFeatures(queryFeature, function(result) {
+              console.log('rooms ' + result.features.length);
+              result.features.forEach(function(item) {
+                var SPACEID = item.attributes.SPACEID;
+                if (dojo.indexOf(busyRooms, SPACEID) >= 0) {
+                  item.setSymbol(symbolBusy);
+                } else {
+                  if (SPACEID.substring(0, SPACEID.length - 1).endsWith('A')) {
+                    item.setSymbol(symbolFree);
+                  }
+                }
+              });
+            });
+
+            app.currentLayer.redraw();
 
 
-        }); //queryTask.execute
-      }
+          }); //queryTask.execute
 
-      app.selectLayer(app.currentFloor);
+
+
+
+
+          app.currentLayer.on("click", function(evt) {
+            console.log(evt.graphic.attributes);
+
+            var queryTask = new QueryTask(urlCalendar);
+            var query = new Query();
+            query.returnGeometry = false;
+            query.outFields = ["*"];
+
+            var dayStart = currentDate.format("MM/DD/YYYY") + ' 00:00:00 AM';
+            var dayEnd = currentDate.format("MM/DD/YYYY") + ' 11:59:59 PM';
+
+            query.where = "RoomNumber= '" + evt.graphic.attributes.SPACEID + "' AND Start_Date >= '" + dayStart + "' AND End_Date <= '" + dayEnd + "'";
+            console.log('selected room:' + query.where);
+            queryTask.execute(query, showResults);
+
+            function showResults(results) {
+
+              var roomCalendar = {};
+              //finished classes
+              roomCalendar.before = [];
+              roomCalendar.next = [];
+              roomCalendar.now = [];
+
+              console.log(results.features);
+              results.features.forEach(function(item) {
+                classStart = moment(item.attributes.Start_Date);
+                classEnd = moment(item.attributes.End_Date);
+
+                console.log(classStart);
+                console.log(classEnd);
+                console.log(currentDate);
+
+
+                if (currentDate >= classStart && currentDate <= classEnd) {
+                  roomCalendar.now.push(item);
+                } else if (currentDate > classEnd) {
+                  roomCalendar.before.push(item);
+                } else if (classStart > currentDate) {
+                  roomCalendar.next.push(item);
+                } else {
+
+                  item.attributes.classStart = classStart;
+                  item.attributes.classEnd = classEnd;
+                  item.attributes.now = currentDate;
+                  console.log('else:');
+                  console.log(item);
+                }
+
+
+              });
+
+              console.log(roomCalendar);
+
+              var title = "<b>${SPACEID}</b><hr>";
+              var current = "<b>Current Class: </b>${TITLE}<br><b>From:</b> ${FROM:DateFormat(selector:'time')}, <b>To:</b> ${TO:DateFormat(selector:'time')}<br>";
+
+              var nextText = "<br /> <b>Next:</b><br />";
+              var nextClass = "<b>${TITLE}:</b> ${FROM:DateFormat(selector:'time')} - ${TO:DateFormat(selector:'time')}<br>";
+              //   + "<b>2007 Population: </b>${POP2007:NumberFormat}<br>"
+              //   + "<b>2007 Population per Sq. Mi.: </b>${POP07_SQMI:NumberFormat}";
+
+
+              var content = esriLang.substitute({
+                SPACEID: evt.graphic.attributes.SPACEID
+              }, title);
+              if (roomCalendar.now.length > 0) {
+                content += esriLang.substitute({
+                  TITLE: roomCalendar.now[0].attributes.Title,
+                  FROM: roomCalendar.now[0].attributes.Start_Date,
+                  TO: roomCalendar.now[0].attributes.End_Date
+                }, current);
+
+              } else {
+                if (roomCalendar.next.length == 0) {
+                  content += 'No Classes today.';
+                } else {
+                  content += 'No Class right now.';
+                }
+
+              }
+
+              console.log(roomCalendar);
+              if (roomCalendar.next.length > 0) {
+                content += nextText;
+
+                roomCalendar.next.forEach(function(item) {
+
+                  content += esriLang.substitute({
+                    TITLE: item.attributes.Title,
+                    FROM: item.attributes.Start_Date,
+                    TO: item.attributes.End_Date
+                  }, nextClass);
+
+                });
+
+              }
+
+              highlightGraphic = new Graphic(evt.graphic.geometry, symbolSelected);
+              map.graphics.add(highlightGraphic);
+
+              dialog.setContent(content);
+
+              domStyle.set(dialog.domNode, "opacity", 0.85);
+              dijitPopup.open({
+                popup: dialog,
+                x: evt.pageX,
+                y: evt.pageY
+              });
+
+
+            }
+
+
+          }); //end onclick
+
+
+        } //end select layer
+
 
 
 
@@ -239,132 +365,34 @@
 
 
 
-      var queryTask = new QueryTask(urlCalendar);
-      var query = new Query();
-      query.returnGeometry = false;
-      query.outFields = ["*"];
-
-      //listen for when the onMouseOver event fires on the countiesGraphicsLayer
-      //when fired, create a new graphic with the geometry from the event.graphic and add it to the maps graphics layer
-      var highlightGraphic;
-      app.currentLayer.on("click", function(evt) {
-        console.log(evt.graphic.attributes);
-
-        var dayStart = currentDate.format("MM/DD/YYYY") + ' 00:00:00 AM';
-        var dayEnd = currentDate.format("MM/DD/YYYY") + ' 11:59:59 PM';
-
-        query.where = "RoomNumber= '" + evt.graphic.attributes.SPACEID + "' AND Start_Date >= '" + dayStart + "' AND End_Date <= '" + dayEnd + "'";
-        console.log('selected room:' + query.where);
-        queryTask.execute(query, showResults);
-
-        function showResults(results) {
-
-          var roomCalendar = {};
-          //finished classes
-          roomCalendar.before = [];
-          roomCalendar.next = [];
-          roomCalendar.now = [];
-
-          console.log(results.features);
-          results.features.forEach(function(item) {
-            classStart = moment(item.attributes.Start_Date);
-            classEnd = moment(item.attributes.End_Date);
-
-            console.log(classStart);
-            console.log(classEnd);
-            console.log(currentDate);
 
 
-            if (currentDate >= classStart && currentDate <= classEnd) {
-              roomCalendar.now.push(item);
-            } else if (currentDate > classEnd) {
-              roomCalendar.before.push(item);
-            } else if (classStart > currentDate) {
-              roomCalendar.next.push(item);
-            } else {
-
-              item.attributes.classStart = classStart;
-              item.attributes.classEnd = classEnd;
-              item.attributes.now = currentDate;
-              console.log('else:');
-              console.log(item);
-            }
 
 
-          });
-
-          console.log(roomCalendar);
-
-          var title = "<b>${SPACEID}</b><hr>";
-          var current = "<b>Current Class: </b>${TITLE}<br><b>From:</b> ${FROM:DateFormat(selector:'time')}, <b>To:</b> ${TO:DateFormat(selector:'time')}<br>";
-
-          var nextText = "<br /> <b>Next:</b><br />";
-          var nextClass = "<b>${TITLE}:</b> ${FROM:DateFormat(selector:'time')} - ${TO:DateFormat(selector:'time')}<br>";
-          //   + "<b>2007 Population: </b>${POP2007:NumberFormat}<br>"
-          //   + "<b>2007 Population per Sq. Mi.: </b>${POP07_SQMI:NumberFormat}";
-
-
-          var content = esriLang.substitute({
-            SPACEID: evt.graphic.attributes.SPACEID
-          }, title);
-          if (roomCalendar.now.length > 0) {
-            content += esriLang.substitute({
-              TITLE: roomCalendar.now[0].attributes.Title,
-              FROM: roomCalendar.now[0].attributes.Start_Date,
-              TO: roomCalendar.now[0].attributes.End_Date
-            }, current);
-
-          } else {
-            if (roomCalendar.next.length == 0) {
-              content += 'No Classes today.';
-            } else {
-              content += 'No Class right now.';
-            }
-
-          }
-
-          console.log(roomCalendar);
-          if (roomCalendar.next.length > 0) {
-            content += nextText;
-
-            roomCalendar.next.forEach(function(item) {
-
-              content += esriLang.substitute({
-                TITLE: item.attributes.Title,
-                FROM: item.attributes.Start_Date,
-                TO: item.attributes.End_Date
-              }, nextClass);
-
-            });
-
-          }
-
-          highlightGraphic = new Graphic(evt.graphic.geometry, symbolSelected);
-          map.graphics.add(highlightGraphic);
-
-          dialog.setContent(content);
-
-          domStyle.set(dialog.domNode, "opacity", 0.85);
-          dijitPopup.open({
-            popup: dialog,
-            x: evt.pageX,
-            y: evt.pageY
-          });
-
-
-        }
-
-
-      }); //end onclick
 
 
 
       function closeDialog() {
         //map.graphics.clear();
-        map.graphics.remove(highlightGraphic);
+        if (highlightGraphic != null) {
+          map.graphics.remove(highlightGraphic);
+          dijitPopup.close(dialog);
+        }
 
-        dijitPopup.close(dialog);
+
       }
+
+
+
+      dojo.query(".floor").onclick(function(e) {
+        var floor = attr.get(this, 'data-floor');
+        app.selectLayer(floor);
+        dojo.query(".floor").removeClass("widget-floorpicker-button-selected");
+        domClass.add(this, "widget-floorpicker-button-selected");
+      })
+
+      app.selectLayer(app.currentFloor);
+
 
     });
   </script>
@@ -376,16 +404,19 @@
     <div style="height:;bottom:" class="widget-floorpicker widget-floorpicker-without-mylocation">
       <ul class="widget-floorpicker-slider">
         <li>
-          <button class="widget-floorpicker-button">3</button>
+          <button class="widget-floorpicker-button floor" data-floor="4">4</button>
         </li>
         <li>
-          <button class="widget-floorpicker-button">2</button>
+          <button class="widget-floorpicker-button floor" data-floor="3">3</button>
         </li>
         <li>
-          <button class="widget-floorpicker-button">1</button>
+          <button class="widget-floorpicker-button floor" data-floor="2">2</button>
         </li>
         <li>
-          <button class="widget-floorpicker-button widget-floorpicker-button-selected">0</button>
+          <button class="widget-floorpicker-button floor" data-floor="1">1</button>
+        </li>
+        <li>
+          <button class="widget-floorpicker-button floor  widget-floorpicker-button-selected" data-floor="0">0</button>
         </li>
       </ul>
     </div>
